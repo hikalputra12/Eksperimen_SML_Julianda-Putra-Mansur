@@ -1,0 +1,61 @@
+name: Automated Data Preprocessing
+
+# Pemicu Workflow Actions ketika ada push atau pull request ke branch utama
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+# Memberikan akses menulis kepada robot GitHub Actions agar bisa mengunggah balik data bersih
+permissions:
+  contents: write
+
+jobs:
+  run-preprocessing:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Mengambil seluruh kode repositori ke dalam server Ubuntu virtual GitHub
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+
+    # 2. Menyiapkan lingkungan runtime Python versi 3.12
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    # 3. Menginstal pustaka dependencies dasar yang dibutuhkan oleh script
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy scikit-learn
+
+    # 4. Mengeksekusi script otomatisasi dari dalam folder preprocessing
+    - name: Execute Preprocessing Script
+      run: |
+        python Eksperimen_SML_Julianda-Putra-Mansur/preprocessing/automate_Julianda-Putra-Mansur.py
+
+    # 5. Memeriksa hasil dan melakukan push kembali file dataset_clean.csv terbaru ke dalam repositori (hanya jika bukan event pull request)
+    - name: Commit and Push Cleaned Dataset
+      if: github.event_name != 'pull_request'
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
+        # Mendaftarkan file hasil olahan dari folder preprocessing
+        git add Eksperimen_SML_Julianda-Putra-Mansur/preprocessing/loan_approval_preprocessing/dataset_clean.csv
+        
+        # Lakukan commit hanya jika file dataset_clean.csv terdeteksi mengalami perubahan isi data
+        if git diff --staged --quiet; then
+          echo "[-] Tidak ada perubahan data baru pada dataset_clean.csv. Melewati push."
+        else
+          git commit -m "chore: otomatisasi pembaruan dataset_clean.csv via GitHub Actions [skip ci]"
+          git push
+        fi
